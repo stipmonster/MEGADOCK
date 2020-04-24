@@ -10,10 +10,10 @@
 CUDA_INSTALL_PATH ?= /opt/rocm
 CUDA_SAMPLES_PATH ?= /usr/local/cuda/samples
 FFTW_INSTALL_PATH ?= /usr/local
-CPPCOMPILER       ?= hipcc 
+CPPCOMPILER       ?= /opt/rocm-3.3.0/aomp/bin/hipcc
 MPICOMPILER       ?= mpicxx
 OPTIMIZATION      ?= -O3
-OMPFLAG           ?= -D_OPENMP -fopenmp=libgomp  
+OMPFLAG           ?=  -fopenmp=libgomp  -D__HIP_PLATFORM_HCC__ -std=c++11 
  # (If you use g++ compiler, please set the value as "-fopenmp".)
 
 #----------------------------------------------#
@@ -93,12 +93,12 @@ COMMONDIR  := $(ROOTDIR)/common
 
 # Compilers
 #NVCC       := $(CUDA_INSTALL_PATH)/bin/nvcc -Xcompiler -fopenmp -arch=$(SM_VERSIONS) -use_fast_math
-NVCC       := hipcc
+NVCC       := /opt/rocm/aomp/bin/hipcc 
 CXX        := $(COMPILER) $(OMPFLAG)
 LINK       := $(COMPILER) -fPIC $(OMPFLAG)
 
 # Includes
-INCLUDES  += -I$(SRCDIR) -I/usr/lib/gcc/x86_64-redhat-linux/4.8.2/include/
+INCLUDES  += -I$(SRCDIR)
 ifeq ($(USE_GPU),1)
 	INCLUDES += -I$(CUDA_INSTALL_PATH)/include -I$(COMMONDIR)/inc
 endif
@@ -128,7 +128,7 @@ LIB       := $(FFTW_LDFLAGS)
 
 # CUDA Libs
 ifeq ($(USE_GPU),1)
-	LIB   += -L$(CUDA_INSTALL_PATH)/lib64 -lrocfft
+	LIB   += -L$(CUDA_INSTALL_PATH)/lib64 -L$(CUDA_INSTALL_PATH)/rocfft/lib/ -L/opt/rh/llvm-toolset-7.0/root/usr/lib64/ -lrocfft -L/opt/rocm/hip/lib -lhip_hcc
 endif
 
 TARGETDIR := $(BINDIR)
