@@ -68,7 +68,8 @@ static const char *_cudaGetErrorEnum(hipError_t error)
     {
         case hipSuccess:
             return "hipSuccess";
-
+       default:
+	return "<unknown>";
     }
     return "<unknown>";
 }
