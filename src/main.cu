@@ -17,7 +17,7 @@
 #include "control.h"
 
 #ifdef CUFFT
-#include <helper_cuda.h>
+#include "helper_cuda.h"
 #define VERSION "4.1.3 for GPU & "
 #else
 #define VERSION "4.1.3 for CPU & "
@@ -85,26 +85,26 @@ int main(int argc, char *argv[])
     }
 
     if(nogpu_flag != 1) {
-        checkCudaErrors( cudaGetDeviceCount(&device_count_gpu) );
+        checkCudaErrors( hipGetDeviceCount(&device_count_gpu) );
         if (device_count_gpu == 0) {
             fprintf(stderr, "GPU Error: no devices supporting CUDA.\n");
             exit(-1);
         }
 
-        cudaDeviceProp deviceProp;
-        checkCudaErrors( cudaGetDeviceProperties(&deviceProp, 0));
+        hipDeviceProp_t deviceProp;
+        checkCudaErrors( hipGetDeviceProperties(&deviceProp, 0));
         if (deviceProp.major < 1) {
             fprintf(stderr, "GPU Error: device does not support CUDA.\n");
             exit(-1);
         }
 
-        cudaSetDeviceFlags(cudaDeviceMapHost);
+        hipSetDeviceFlags(hipDeviceMapHost);
         fprintf(stdout, "# Using CUDA device %d: %s\n", 0, deviceProp.name);
-        cudaSetDevice(0);
+        hipSetDevice(0);
         //fprintf(stdout, "# Init CUDA device OK.\n");
 
         int cufft_version;
-        cufftGetVersion(&cufft_version);
+        hipfftGetVersion(&cufft_version);
         printf("# CUFFT version : %d\n", cufft_version);
     }
 #endif

@@ -19,9 +19,8 @@
 #include <time.h>
 #include <sys/time.h>
 
-#ifdef _OPENMP
 #include <omp.h>
-#endif
+
 
 class Parallel
 {

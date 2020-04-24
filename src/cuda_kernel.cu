@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * Copyright (C) 2020 Tokyo Institute of Technology
  */
@@ -120,18 +121,18 @@ __global__ void lig_vox_init_grid(int ng3,float *grid_r,float *grid_i)
     }
 }
 
-__global__ void lig_vox_init_fft(int nf3,cufftComplex *lig_in)
+__global__ void lig_vox_init_fft(int nf3,hipfftComplex *lig_in)
 {
     const int id  = blockIdx.x * blockDim.x + threadIdx.x;
     if(id < nf3) { //initialize
-        lig_in[id] =  make_cuComplex( 0.0, 0.0);
+        lig_in[id] =  make_hipComplex( 0.0, 0.0);
         //lig_in[id].x=0.0;
         //lig_in[id].y=0.0;
     }
 }
 
 __global__ void ligand_voxel_set(int ng1
-                                 ,cufftComplex *lig_in
+                                 ,hipfftComplex *lig_in
                                  ,float *grid_r
                                  ,float *grid_i)
 {
@@ -154,9 +155,9 @@ __global__ void ligand_voxel_set(int ng1
 
         //*
         if(grid_r[id]==surface) {// this condition judges whether surface(1.0) or temporary score(-8888.0)
-            lig_in[idoff] =  make_cuComplex( grid_r[id], grid_i[id]);
+            lig_in[idoff] =  make_hipComplex( grid_r[id], grid_i[id]);
         } else {
-            lig_in[idoff] =  make_cuComplex( 0.0, grid_i[id]);
+            lig_in[idoff] =  make_hipComplex( 0.0, grid_i[id]);
         }
         //*
     }
@@ -251,7 +252,7 @@ __device__ void lig_vox_surface_cut_TtoO(int ng3, float delta, float *grid_r)
     }
 }
 
-__global__ void convolution_gpu(int nf3, float *rec_r, float *rec_i, cufftComplex *lig_out, cufftComplex *lig_in)
+__global__ void convolution_gpu(int nf3, float *rec_r, float *rec_i, hipfftComplex *lig_out, hipfftComplex *lig_in)
 {
     const int id  = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -259,18 +260,18 @@ __global__ void convolution_gpu(int nf3, float *rec_r, float *rec_i, cufftComple
         const float lig_r = lig_out[id].x;
         const float lig_i = lig_out[id].y;
 
-        lig_in[id] =  make_cuComplex( rec_r[id]*lig_r + rec_i[id]*lig_i, rec_r[id]*lig_i - rec_i[id]*lig_r);
+        lig_in[id] =  make_hipComplex( rec_r[id]*lig_r + rec_i[id]*lig_i, rec_r[id]*lig_i - rec_i[id]*lig_r);
         //lig_in[id].x = rec_r[id]*lig_r + rec_i[id]*lig_i;
         //lig_in[id].y = rec_r[id]*lig_i - rec_i[id]*lig_r;
     }
 }
 
-__global__ void max_pos_single(int nf3, cufftComplex *out, float *score, int *pos)
+__global__ void max_pos_single(int nf3, hipfftComplex *out, float *score, int *pos)
 {
     //blockDim.x = nThreads
     //score[nBlocks], pos[nBlocks] (nBlocks = nf3 / nThreads)
     //sdata[nThreads]
-    extern __shared__ float sdata[];
+    HIP_DYNAMIC_SHARED( float, sdata)
     float mscore;
 
     const int thr_id  = threadIdx.x;
@@ -278,7 +279,7 @@ __global__ void max_pos_single(int nf3, cufftComplex *out, float *score, int *po
     const int id  = blockIdx.x * blockDim.x + threadIdx.x;
 
     if(id < nf3) {
-        mscore = sdata[thr_id] = cuCrealf(out[id])/nf3;
+        mscore = sdata[thr_id] = hipCrealf(out[id])/nf3;
         __syncthreads();    //all threads set sdata[thr_id]
 
         //reduction
@@ -297,7 +298,7 @@ __global__ void max_pos_single(int nf3, cufftComplex *out, float *score, int *po
     }
 }
 
-__global__ void max_pos_multi_set(int nf3, cufftComplex *out, float *temp_score, int *temp_index)
+__global__ void max_pos_multi_set(int nf3, hipfftComplex *out, float *temp_score, int *temp_index)
 {
     const int id  = blockIdx.x * blockDim.x + threadIdx.x;
     if(id < nf3) {
@@ -306,9 +307,9 @@ __global__ void max_pos_multi_set(int nf3, cufftComplex *out, float *temp_score,
     }
 }
 
-//, std::vector<cufftComplex> *temp_result , thrust::vector<cufftComplex> *temp_result
-//thrust::device_ptr<cufftComplex> *temp_result cufftComplex *temp_result,thrust::device_ptr<cufftComplex> temp_result
-__global__ void max_pos_multi(int nf3, cufftComplex *out, float *score, int *pos,const int num_sort,const int offset)
+//, std::vector<hipfftComplex> *temp_result , thrust::vector<hipfftComplex> *temp_result
+//thrust::device_ptr<hipfftComplex> *temp_result hipfftComplex *temp_result,thrust::device_ptr<hipfftComplex> temp_result
+__global__ void max_pos_multi(int nf3, hipfftComplex *out, float *score, int *pos,const int num_sort,const int offset)
 {
     const int id  = blockIdx.x * blockDim.x + threadIdx.x;
     if (id < offset) {
@@ -329,12 +330,12 @@ __global__ void max_pos_multi(int nf3, cufftComplex *out, float *score, int *pos
 
 
 /*
-__global__ void max_pos_multi(int nf3, cufftComplex *out, float *score, int *pos,const int num_sort, float *temp_score, int *temp_index)
+__global__ void max_pos_multi(int nf3, hipfftComplex *out, float *score, int *pos,const int num_sort, float *temp_score, int *temp_index)
 {
     //blockDim.x = nThreads,
     //score[nBlocks], pos[nBlocks] (nBlocks = nf3 / nThreads)
     //sdata[nThreads]
-    extern __shared__ float sdata[];
+    HIP_DYNAMIC_SHARED( float, sdata)
     float mscore;
     int offset;
 
@@ -342,13 +343,13 @@ __global__ void max_pos_multi(int nf3, cufftComplex *out, float *score, int *pos
     const int nThreads = blockDim.x;
     const int id  = blockIdx.x * blockDim.x + threadIdx.x;
 
-    //*
+    
     if(id < nf3) {
-        temp_score[id]=cuCrealf(out[id])/nf3;
+        temp_score[id]=hipCrealf(out[id])/nf3;
         temp_index[id]=id;
 
 
-        /*
+        
         __syncthreads();    //all threads set sdata[thr_id]
 
         //reduction
@@ -371,12 +372,12 @@ __global__ void max_pos_multi(int nf3, cufftComplex *out, float *score, int *pos
                 //printf("   BLOCK ID:%d, sdata[0]=%f, pos=%d\n",blockIdx.x,sdata[0],i);
             }
         }
-        //*
+        
         if(temp_score[id] >3000) printf(" id=%d, %f %d\n",id,temp_score[id],temp_index[id]);
     }
-    //*
+    
 }
-//*/
+*/
 
 
 

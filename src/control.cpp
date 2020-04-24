@@ -513,7 +513,7 @@ void Control::execute()
     //delete docking include delete fft_process, _FFT_rec_r/i[nf3], _FFTWin/out[nf3*nproc2]
     _cputime->record_free( sizeof(float)*nf3*2 + sizeof(fftwf_complex)*nf3*2*nproc2);
 #ifdef CUFFT
-    _cputime->record_free( sizeof(cufftComplex)*nf3*2 ); //_in/outBuf
+    _cputime->record_free( sizeof(hipfftComplex)*nf3*2 ); //_in/outBuf
 #endif
     _cputime->record_free( sizeof(float)*_Memfw*nproc2 + sizeof(int)*_Memiw*nproc2 ); //_F/Iwork
     delete _docking;

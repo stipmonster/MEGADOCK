@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * Copyright (C) 2020 Tokyo Institute of Technology
  */
@@ -95,10 +96,10 @@ void FFTProcess::alloc_fft()
     const int nThreads = NUM_THREADS;
     const int nBlocks_nf3 = (nf3 + (nThreads-1)) / nThreads;
 
-    CUFFTin_host  = new cufftComplex[nf3];
-    CUFFTout_host = new cufftComplex[nf3];
+    CUFFTin_host  = new hipfftComplex[nf3];
+    CUFFTout_host = new hipfftComplex[nf3];
 
-    _cputime->record_malloc( sizeof(cufftComplex)*nf3*2 ); //_in/outBuf
+    _cputime->record_malloc( sizeof(hipfftComplex)*nf3*2 ); //_in/outBuf
 
     //printf(" start: %p\n",&CUFFTin_host[0].x);
 
@@ -106,7 +107,7 @@ void FFTProcess::alloc_fft()
     for( int i = 0 ; i < nf3; i++ ) { // This initialization should be executed only once
         if(i<20)printf(" %p %p\n",&CUFFTin_host[i].x,&CUFFTin_host[i].y);
         if(i>nf3-20)printf(" %p %p\n",&CUFFTin_host[i].x,&CUFFTin_host[i].y);
-        CUFFTin_host[i] = make_cuComplex(0.0, 0.0);
+        CUFFTin_host[i] = make_hipComplex(0.0, 0.0);
         CUFFTin_host[i].x = 0.0;
         CUFFTin_host[i].y = 0.0;
     }
@@ -117,11 +118,11 @@ void FFTProcess::alloc_fft()
 
     //printf("   end: %ld\n",(long long int)&CUFFTin_host[nf3-1].y - &CUFFTin_host[0].x);
 
-    cufft_plan = new cufftHandle[num_gpu];
-    cufft_result = new cufftResult[num_gpu];
+    cufft_plan = new hipfftHandle[num_gpu];
+    cufft_result = new hipfftResult[num_gpu];
 
-    CUFFTin_gpu = new cufftComplex*[num_gpu];
-    CUFFTout_gpu = new cufftComplex*[num_gpu];
+    CUFFTin_gpu = new hipfftComplex*[num_gpu];
+    CUFFTout_gpu = new hipfftComplex*[num_gpu];
     _FFT_rec_r_gpu = new float*[num_gpu];
     _FFT_rec_i_gpu = new float*[num_gpu];
 
@@ -145,29 +146,29 @@ void FFTProcess::alloc_fft()
 
 
     for(int gpu_id = 0; gpu_id < num_gpu; gpu_id++) {
-        cudaSetDevice(gpu_id);
-        cufft_result[gpu_id] = cufftPlan3d(&cufft_plan[gpu_id], nf1, nf1, nf1, CUFFT_C2C);
+        hipSetDevice(gpu_id);
+        cufft_result[gpu_id] = hipfftPlan3d(&cufft_plan[gpu_id], nf1, nf1, nf1, HIPFFT_C2C);
 
-        checkCudaErrors( cudaMalloc((void **)&CUFFTin_gpu[gpu_id],  sizeof(cufftComplex)*nf3) );
-        checkCudaErrors( cudaMalloc((void **)&CUFFTout_gpu[gpu_id], sizeof(cufftComplex)*nf3) );
-        checkCudaErrors( cudaMalloc((void **)&_FFT_rec_r_gpu[gpu_id], sizeof(float)*nf3) );
-        checkCudaErrors( cudaMalloc((void **)&_FFT_rec_i_gpu[gpu_id], sizeof(float)*nf3) );
+        checkCudaErrors( hipMalloc((void **)&CUFFTin_gpu[gpu_id],  sizeof(hipfftComplex)*nf3) );
+        checkCudaErrors( hipMalloc((void **)&CUFFTout_gpu[gpu_id], sizeof(hipfftComplex)*nf3) );
+        checkCudaErrors( hipMalloc((void **)&_FFT_rec_r_gpu[gpu_id], sizeof(float)*nf3) );
+        checkCudaErrors( hipMalloc((void **)&_FFT_rec_i_gpu[gpu_id], sizeof(float)*nf3) );
 
-        checkCudaErrors( cudaMalloc((void **)&grid_r_gpu[gpu_id],  sizeof(float)*ng3));
-        checkCudaErrors( cudaMalloc((void **)&grid_i_gpu[gpu_id],  sizeof(float)*ng3));
-        checkCudaErrors( cudaMalloc((void **)&grid_coord_gpu[gpu_id],  sizeof(float)*ng1));
-        checkCudaErrors( cudaMalloc((void **)&radius_core2_gpu[gpu_id],  sizeof(float)*na));
-        checkCudaErrors( cudaMalloc((void **)&radius_surf2_gpu[gpu_id],  sizeof(float)*na));
-        checkCudaErrors( cudaMalloc((void **)&_Charge_gpu[gpu_id],  sizeof(float)*na));
-        checkCudaErrors( cudaMalloc((void **)&xd_gpu[gpu_id],  sizeof(float)*nag));
-        checkCudaErrors( cudaMalloc((void **)&yd_gpu[gpu_id],  sizeof(float)*nag));
-        checkCudaErrors( cudaMalloc((void **)&zd_gpu[gpu_id],  sizeof(float)*nag));
-        checkCudaErrors( cudaMalloc((void **)&atom_coord_rotated_gpu[gpu_id],  sizeof(float)*na*3));
-        checkCudaErrors( cudaMalloc((void **)&atom_coord_orig_gpu[gpu_id],  sizeof(float)*na*3));
-        checkCudaErrors( cudaMalloc((void **)&mole_center_coord_gpu[gpu_id],  sizeof(float)*3));
-        checkCudaErrors( cudaMalloc((void **)&ligand_rotation_angle_gpu[gpu_id],  sizeof(float)*3));
-        checkCudaErrors( cudaMalloc((void **)&top_score_gpu[gpu_id], sizeof(float)*nBlocks_nf3*num_sort) );
-        checkCudaErrors( cudaMalloc((void **)&top_index_gpu[gpu_id], sizeof(int)*nBlocks_nf3*num_sort) );
+        checkCudaErrors( hipMalloc((void **)&grid_r_gpu[gpu_id],  sizeof(float)*ng3));
+        checkCudaErrors( hipMalloc((void **)&grid_i_gpu[gpu_id],  sizeof(float)*ng3));
+        checkCudaErrors( hipMalloc((void **)&grid_coord_gpu[gpu_id],  sizeof(float)*ng1));
+        checkCudaErrors( hipMalloc((void **)&radius_core2_gpu[gpu_id],  sizeof(float)*na));
+        checkCudaErrors( hipMalloc((void **)&radius_surf2_gpu[gpu_id],  sizeof(float)*na));
+        checkCudaErrors( hipMalloc((void **)&_Charge_gpu[gpu_id],  sizeof(float)*na));
+        checkCudaErrors( hipMalloc((void **)&xd_gpu[gpu_id],  sizeof(float)*nag));
+        checkCudaErrors( hipMalloc((void **)&yd_gpu[gpu_id],  sizeof(float)*nag));
+        checkCudaErrors( hipMalloc((void **)&zd_gpu[gpu_id],  sizeof(float)*nag));
+        checkCudaErrors( hipMalloc((void **)&atom_coord_rotated_gpu[gpu_id],  sizeof(float)*na*3));
+        checkCudaErrors( hipMalloc((void **)&atom_coord_orig_gpu[gpu_id],  sizeof(float)*na*3));
+        checkCudaErrors( hipMalloc((void **)&mole_center_coord_gpu[gpu_id],  sizeof(float)*3));
+        checkCudaErrors( hipMalloc((void **)&ligand_rotation_angle_gpu[gpu_id],  sizeof(float)*3));
+        checkCudaErrors( hipMalloc((void **)&top_score_gpu[gpu_id], sizeof(float)*nBlocks_nf3*num_sort) );
+        checkCudaErrors( hipMalloc((void **)&top_index_gpu[gpu_id], sizeof(int)*nBlocks_nf3*num_sort) );
 
         top_score_host[gpu_id] = new float[nBlocks_nf3];
         top_index_host[gpu_id] = new int[nBlocks_nf3];
@@ -178,7 +179,7 @@ void FFTProcess::alloc_fft()
 
     //*
     size_t devmem_use, devmem_free, devmem_total;
-    cudaMemGetInfo(&devmem_free, &devmem_total);
+    hipMemGetInfo(&devmem_free, &devmem_total);
     devmem_use = devmem_total - devmem_free;
     printf("# GPU Memory : Use %3.1f MB (%4.1f%%), Free %3.1f MB (%4.1f%%), Total %3.1f MB\n",(float)devmem_use/1024.0/1024.0,(float)(100*devmem_use/devmem_total), (float)devmem_free/1024.0/1024.0, (float)(100*devmem_free/devmem_total), (float)devmem_total/1024.0/1024.0);
     //*/
@@ -223,9 +224,9 @@ void FFTProcess::receptor_fft(float *grid_r,float *grid_i)
 #ifdef CUFFT
         int myid2;
         struct timeval et1, et2;
-        //memset(CUFFTin_host[0], make_cuComplex(0.0, 0.0), sizeof(cufftComplex)*nf3);
+        //memset(CUFFTin_host[0], make_hipComplex(0.0, 0.0), sizeof(hipfftComplex)*nf3);
         for( int i = 0 ; i < nf3 ; i++ ) {
-            CUFFTin_host[i] = make_cuComplex(0.0, 0.0);
+            CUFFTin_host[i] = make_hipComplex(0.0, 0.0);
         }
 
         for( int i = 0, m = 0 ; i < num_grid ; i++ ) {
@@ -233,29 +234,29 @@ void FFTProcess::receptor_fft(float *grid_r,float *grid_i)
             for( int j = 0 ; j < num_grid ; j++ ) {
                 const int jc = ic + _Num_fft*(j+ndata);
                 for( int k = 0 ; k < num_grid ; k++ ) {
-                    CUFFTin_host[jc+k+ndata] = make_cuComplex(grid_r[m  ], grid_i[m]);
+                    CUFFTin_host[jc+k+ndata] = make_hipComplex(grid_r[m  ], grid_i[m]);
                     m++;
                 }
             }
         }
 
-        cudaSetDevice(0); //CUFFTin_dev[0] : [0] means 0th GPU
+        hipSetDevice(0); //CUFFTin_dev[0] : [0] means 0th GPU
 
         gettimeofday(&et1,NULL);
-        checkCudaErrors( cudaMemcpy(CUFFTin_gpu[0], CUFFTin_host, sizeof(cufftComplex)*nf3, cudaMemcpyHostToDevice) );
+        checkCudaErrors( hipMemcpy(CUFFTin_gpu[0], CUFFTin_host, sizeof(hipfftComplex)*nf3, hipMemcpyHostToDevice) );
         gettimeofday(&et2,NULL);
         _cputime->t6_data_transfer_rec += (et2.tv_sec-et1.tv_sec + (float)((et2.tv_usec-et1.tv_usec)*1e-6));
 
         fft3d(theta,0); // [0] means performed on 0th GPU
 
         gettimeofday(&et1,NULL);
-        checkCudaErrors( cudaMemcpy(CUFFTout_host,CUFFTout_gpu[0],sizeof(cufftComplex)*nf3,cudaMemcpyDeviceToHost) );
+        checkCudaErrors( hipMemcpy(CUFFTout_host,CUFFTout_gpu[0],sizeof(hipfftComplex)*nf3,hipMemcpyDeviceToHost) );
         gettimeofday(&et2,NULL);
         _cputime->t6_data_transfer_rec += (et2.tv_sec-et1.tv_sec + (float)((et2.tv_usec-et1.tv_usec)*1e-6));
 
         for( int i = 0 ; i < nf3 ; i++ ) {
-            _FFT_rec_r[i] = cuCrealf(CUFFTout_host[i]);
-            _FFT_rec_i[i] = cuCimagf(CUFFTout_host[i]);
+            _FFT_rec_r[i] = hipCrealf(CUFFTout_host[i]);
+            _FFT_rec_i[i] = hipCimagf(CUFFTout_host[i]);
         }
 
         gettimeofday(&et1,NULL);
@@ -265,9 +266,9 @@ void FFTProcess::receptor_fft(float *grid_r,float *grid_i)
             myid2 = omp_get_thread_num();
             #pragma omp for
             for(int gpu_id = 0; gpu_id < num_gpu; gpu_id++) {
-                cudaSetDevice(myid2);
-                checkCudaErrors( cudaMemcpy(_FFT_rec_r_gpu[myid2], _FFT_rec_r, sizeof(float)*nf3, cudaMemcpyHostToDevice) );
-                checkCudaErrors( cudaMemcpy(_FFT_rec_i_gpu[myid2], _FFT_rec_i, sizeof(float)*nf3, cudaMemcpyHostToDevice) );
+                hipSetDevice(myid2);
+                checkCudaErrors( hipMemcpy(_FFT_rec_r_gpu[myid2], _FFT_rec_r, sizeof(float)*nf3, hipMemcpyHostToDevice) );
+                checkCudaErrors( hipMemcpy(_FFT_rec_i_gpu[myid2], _FFT_rec_i, sizeof(float)*nf3, hipMemcpyHostToDevice) );
             }
         }
 
@@ -356,27 +357,27 @@ void FFTProcess::fft3d(const float &theta, size_t myid2)
     if(myid2 < num_gpu) {
 #ifdef CUFFT
         const int nf1 = _Num_fft;
-        cufftHandle plan;
-        cufftResult res;
+        hipfftHandle plan;
+        hipfftResult res;
 
-        res = cufftPlan3d(&plan, nf1, nf1, nf1, CUFFT_C2C);
-        if(!res == CUFFT_SUCCESS) {
+        res = hipfftPlan3d(&plan, nf1, nf1, nf1, HIPFFT_C2C);
+        if(!res == HIPFFT_SUCCESS) {
             cout << "!fail to plan 3d FFT (DFT):" << res << endl;
             exit(-1);
         }
 
         if( theta < 0.0 ) {
-            res = cufftExecC2C(plan, &CUFFTin_gpu[myid2][0], &CUFFTout_gpu[myid2][0], CUFFT_FORWARD);
+            res = hipfftExecC2C(plan, &CUFFTin_gpu[myid2][0], &CUFFTout_gpu[myid2][0], HIPFFT_FORWARD);
         } else {
-            res = cufftExecC2C(plan, &CUFFTin_gpu[myid2][0], &CUFFTout_gpu[myid2][0], CUFFT_INVERSE);
+            res = hipfftExecC2C(plan, &CUFFTin_gpu[myid2][0], &CUFFTout_gpu[myid2][0], HIPFFT_BACKWARD);
         }
 
-        if(!res == CUFFT_SUCCESS) {
+        if(!res == HIPFFT_SUCCESS) {
             cout << "!fail to exec 3d FFT(in fft3d()):" << res << endl;
             exit(-1);
         }
 
-        res =  cufftDestroy(plan);
+        res =  hipfftDestroy(plan);
 #endif
     } else {
         gettimeofday(&et3,NULL);
@@ -524,44 +525,44 @@ void FFTProcess::cuda_fft(float *grid_r,float *grid_i,float *grid_coord,float *a
         exit(1);
     }
 
-    cudaSetDevice(myid2);
+    hipSetDevice(myid2);
     //printf(" #p10 [myid=%d]\n",myid2);
 
     ligand_voxelization_on_gpu(theta,myid2);
-    checkCudaErrors( cudaDeviceSynchronize() );
+    checkCudaErrors( hipDeviceSynchronize() );
 
     if(myid2==0) gettimeofday(&et2,NULL);
     if(myid2==0) _cputime->t3_1_ligand_voxelization += (et2.tv_sec-et1.tv_sec + (float)((et2.tv_usec-et1.tv_usec)*1e-6));
     if(myid2==0) gettimeofday(&et1,NULL);
 
-    cufft_result[myid2] = cufftExecC2C(cufft_plan[myid2], &CUFFTin_gpu[myid2][0], &CUFFTout_gpu[myid2][0], CUFFT_FORWARD);
-    if(!cufft_result[myid2] == CUFFT_SUCCESS) {
+    cufft_result[myid2] = hipfftExecC2C(cufft_plan[myid2], &CUFFTin_gpu[myid2][0], &CUFFTout_gpu[myid2][0], HIPFFT_FORWARD);
+    if(!cufft_result[myid2] == HIPFFT_SUCCESS) {
         cout << "!fail to exec 3d FFT (DFT, Lig):" << cufft_result[myid2] << endl;
         exit(-1);
     }
 
     //*/
-    checkCudaErrors( cudaDeviceSynchronize() );
+    checkCudaErrors( hipDeviceSynchronize() );
 
     if(myid2==0) gettimeofday(&et2,NULL);
     if(myid2==0) _cputime->t3_2_fftprocess_ligand_fft += (et2.tv_sec-et1.tv_sec + (float)((et2.tv_usec-et1.tv_usec)*1e-6));
 
     if(myid2==0) gettimeofday(&et1,NULL);
-    convolution_gpu<<<nBlocks_nf3, nThreads>>>(nf3, _FFT_rec_r_gpu[myid2], _FFT_rec_i_gpu[myid2], CUFFTout_gpu[myid2], CUFFTin_gpu[myid2]);
+    hipLaunchKernelGGL(convolution_gpu, dim3(nBlocks_nf3), dim3(nThreads), 0, 0, nf3, _FFT_rec_r_gpu[myid2], _FFT_rec_i_gpu[myid2], CUFFTout_gpu[myid2], CUFFTin_gpu[myid2]);
 
-    checkCudaErrors( cudaDeviceSynchronize() );
+    checkCudaErrors( hipDeviceSynchronize() );
 
     if(myid2==0) gettimeofday(&et2,NULL);
     if(myid2==0) _cputime->t3_3_fftprocess_convolution += (et2.tv_sec-et1.tv_sec + (float)((et2.tv_usec-et1.tv_usec)*1e-6));
     if(myid2==0) gettimeofday(&et1,NULL);
 
-    cufft_result[myid2] = cufftExecC2C(cufft_plan[myid2], &CUFFTin_gpu[myid2][0], &CUFFTout_gpu[myid2][0], CUFFT_INVERSE);
-    if(!(cufft_result[myid2] == CUFFT_SUCCESS)) {
+    cufft_result[myid2] = hipfftExecC2C(cufft_plan[myid2], &CUFFTin_gpu[myid2][0], &CUFFTout_gpu[myid2][0], HIPFFT_BACKWARD);
+    if(!(cufft_result[myid2] == HIPFFT_SUCCESS)) {
         cout << "!fail to exec 3d FFT (IDFT):" << cufft_result[myid2] << endl;
         exit(-1);
     }
     //*
-    checkCudaErrors( cudaDeviceSynchronize() );
+    checkCudaErrors( hipDeviceSynchronize() );
     if(myid2==0) gettimeofday(&et2,NULL);
     if(myid2==0) _cputime->t3_4_fftprocess_fft_inverse += (et2.tv_sec-et1.tv_sec + (float)((et2.tv_usec-et1.tv_usec)*1e-6));
     if(myid2==0) gettimeofday(&et1,NULL);
@@ -574,15 +575,15 @@ void FFTProcess::cuda_fft(float *grid_r,float *grid_i,float *grid_coord,float *a
         _Select[myid2][i].score = -99999.0;
     }
 
-    max_pos_single<<<nBlocks_nf3, nThreads, sizeof(float)*nThreads>>>(nf3, CUFFTout_gpu[myid2],  top_score_gpu[myid2], top_index_gpu[myid2]);
-    checkCudaErrors( cudaDeviceSynchronize() );
+    hipLaunchKernelGGL(max_pos_single, dim3(nBlocks_nf3), dim3(nThreads), sizeof(float)*nThreads, 0, nf3, CUFFTout_gpu[myid2],  top_score_gpu[myid2], top_index_gpu[myid2]);
+    checkCudaErrors( hipDeviceSynchronize() );
 
     if(myid2==0) gettimeofday(&et3,NULL);
-    checkCudaErrors( cudaMemcpy(top_score_host[myid2],top_score_gpu[myid2],sizeof(float)*nBlocks_nf3,cudaMemcpyDeviceToHost) );
-    checkCudaErrors( cudaMemcpy(top_index_host[myid2],top_index_gpu[myid2],sizeof(int)*nBlocks_nf3,cudaMemcpyDeviceToHost) );
+    checkCudaErrors( hipMemcpy(top_score_host[myid2],top_score_gpu[myid2],sizeof(float)*nBlocks_nf3,hipMemcpyDeviceToHost) );
+    checkCudaErrors( hipMemcpy(top_index_host[myid2],top_index_gpu[myid2],sizeof(int)*nBlocks_nf3,hipMemcpyDeviceToHost) );
     if(myid2==0) gettimeofday(&et4,NULL);
     if(myid2==0) _cputime->t6_data_transfer_in_loop += (et4.tv_sec-et3.tv_sec + (float)((et4.tv_usec-et3.tv_usec)*1e-6));
-    checkCudaErrors( cudaDeviceSynchronize() );
+    checkCudaErrors( hipDeviceSynchronize() );
 
     if(num_sort!=1) {
         for(int i=0; i<nBlocks_nf3; i++) {
@@ -643,12 +644,12 @@ void FFTProcess::cuda_fft(float *grid_r,float *grid_i,float *grid_coord,float *a
     }
 
     //size_t devmem_use, devmem_free, devmem_total;
-    //cudaMemGetInfo(&devmem_free, &devmem_total);
+    //hipMemGetInfo(&devmem_free, &devmem_total);
     //devmem_use = devmem_total - devmem_free;
     //printf(" [GPU (%d) memory] Use : %10u (%4.1f%%), Free : %10u (%4.1f%%), Total : %10u\n",myid2,devmem_use,(float)(100*devmem_use/devmem_total), devmem_free, (float)(100*devmem_free/devmem_total), devmem_total);
 
 
-    checkCudaErrors( cudaDeviceSynchronize() );
+    checkCudaErrors( hipDeviceSynchronize() );
     if(myid2==0) gettimeofday(&et2,NULL);
     if(myid2==0) _cputime->t3_5_fftprocess_score_sort += (et2.tv_sec-et1.tv_sec + (float)((et2.tv_usec-et1.tv_usec)*1e-6));
 
@@ -692,44 +693,42 @@ void FFTProcess::ligand_voxelization_on_gpu(float *theta, size_t myid2)
     if(myid2==0) gettimeofday(&et3,NULL);
 
     if(myid2==0) gettimeofday(&et1,NULL);
-    checkCudaErrors( cudaMemcpy(ligand_rotation_angle_gpu[myid2], theta, sizeof(float)*3, cudaMemcpyHostToDevice) );
+    checkCudaErrors( hipMemcpy(ligand_rotation_angle_gpu[myid2], theta, sizeof(float)*3, hipMemcpyHostToDevice) );
     if(myid2==0) gettimeofday(&et2,NULL);
     if(myid2==0) _cputime->t3_1_ligand_voxelization += (et2.tv_sec-et1.tv_sec + (float)((et2.tv_usec-et1.tv_usec)*1e-6));
 
-    lig_rotation<<<nBlocks_na, nThreads>>>(na, ligand_rotation_angle_gpu[myid2],atom_coord_orig_gpu[myid2], mole_center_coord_gpu[myid2], atom_coord_rotated_gpu[myid2]);
-    lig_calc_dis_atomgrid<<<nBlocks_nag, nThreads>>>(na, ng1, xd_gpu[myid2], yd_gpu[myid2], zd_gpu[myid2], grid_coord_gpu[myid2], atom_coord_rotated_gpu[myid2]);
-    checkCudaErrors( cudaDeviceSynchronize() );
+    hipLaunchKernelGGL(lig_rotation, dim3(nBlocks_na), dim3(nThreads), 0, 0, na, ligand_rotation_angle_gpu[myid2],atom_coord_orig_gpu[myid2], mole_center_coord_gpu[myid2], atom_coord_rotated_gpu[myid2]);
+    hipLaunchKernelGGL(lig_calc_dis_atomgrid, dim3(nBlocks_nag), dim3(nThreads), 0, 0, na, ng1, xd_gpu[myid2], yd_gpu[myid2], zd_gpu[myid2], grid_coord_gpu[myid2], atom_coord_rotated_gpu[myid2]);
+    checkCudaErrors( hipDeviceSynchronize() );
     if(myid2==0) gettimeofday(&et4,NULL);
     if(myid2==0) _cputime->t3_1_1_ligvoxgpu_copy_htod += (et4.tv_sec-et3.tv_sec + (float)((et4.tv_usec-et3.tv_usec)*1e-6));
 
     //grid[] initialize
     if(myid2==0) gettimeofday(&et3,NULL);
-    lig_vox_init_grid<<<nBlocks_ng3, nThreads>>>(ng3,grid_r_gpu[myid2],grid_i_gpu[myid2]);
-    lig_vox_init_fft<<<nBlocks_nf3, nThreads>>>(nf3,CUFFTin_gpu[myid2]);
-    checkCudaErrors( cudaDeviceSynchronize() );
+    hipLaunchKernelGGL(lig_vox_init_grid, dim3(nBlocks_ng3), dim3(nThreads), 0, 0, ng3,grid_r_gpu[myid2],grid_i_gpu[myid2]);
+    hipLaunchKernelGGL(lig_vox_init_fft, dim3(nBlocks_nf3), dim3(nThreads), 0, 0, nf3,CUFFTin_gpu[myid2]);
+    checkCudaErrors( hipDeviceSynchronize() );
     if(myid2==0) gettimeofday(&et4,NULL);
     if(myid2==0) _cputime->t3_1_2_ligvoxgpu_kernel_init += (et4.tv_sec-et3.tv_sec + (float)((et4.tv_usec-et3.tv_usec)*1e-6));
 
     //atom fill(core)
     if(myid2==0) gettimeofday(&et3,NULL);
-    lig_vox_fill<<<nBlocks_ng3, nThreads>>>
-    (ng1,na,delta,radius_core2_gpu[myid2],xd_gpu[myid2],yd_gpu[myid2],zd_gpu[myid2],grid_coord_gpu[myid2],atom_coord_rotated_gpu[myid2],grid_r_gpu[myid2], grid_width);
-    checkCudaErrors( cudaDeviceSynchronize() );
+    hipLaunchKernelGGL(lig_vox_fill, dim3(nBlocks_ng3), dim3(nThreads), 0, 0, ng1,na,delta,radius_core2_gpu[myid2],xd_gpu[myid2],yd_gpu[myid2],zd_gpu[myid2],grid_coord_gpu[myid2],atom_coord_rotated_gpu[myid2],grid_r_gpu[myid2], grid_width);
+    checkCudaErrors( hipDeviceSynchronize() );
     if(myid2==0) gettimeofday(&et4,NULL);
     if(myid2==0) _cputime->t3_1_3_ligvoxgpu_kernel_fill_core += (et4.tv_sec-et3.tv_sec + (float)((et4.tv_usec-et3.tv_usec)*1e-6));
 
     //surface cutting
     if(myid2==0) gettimeofday(&et3,NULL);
-    lig_vox_surface_cut_CtoT<<<nBlocks_ng3, nThreads>>>(ng1,delta,grid_r_gpu[myid2]);
-    checkCudaErrors( cudaDeviceSynchronize() );
+    hipLaunchKernelGGL(lig_vox_surface_cut_CtoT, dim3(nBlocks_ng3), dim3(nThreads), 0, 0, ng1,delta,grid_r_gpu[myid2]);
+    checkCudaErrors( hipDeviceSynchronize() );
     if(myid2==0) gettimeofday(&et4,NULL);
     if(myid2==0) _cputime->t3_1_4_ligvoxgpu_kernel_cut_surf += (et4.tv_sec-et3.tv_sec + (float)((et4.tv_usec-et3.tv_usec)*1e-6));
 
     //atom fill(surf)
     if(myid2==0) gettimeofday(&et3,NULL);
-    lig_vox_fill<<<nBlocks_ng3, nThreads>>>
-    (ng1,na,surface,radius_surf2_gpu[myid2],xd_gpu[myid2],yd_gpu[myid2],zd_gpu[myid2],grid_coord_gpu[myid2],atom_coord_rotated_gpu[myid2],grid_r_gpu[myid2], grid_width);
-    checkCudaErrors( cudaDeviceSynchronize() );
+    hipLaunchKernelGGL(lig_vox_fill, dim3(nBlocks_ng3), dim3(nThreads), 0, 0, ng1,na,surface,radius_surf2_gpu[myid2],xd_gpu[myid2],yd_gpu[myid2],zd_gpu[myid2],grid_coord_gpu[myid2],atom_coord_rotated_gpu[myid2],grid_r_gpu[myid2], grid_width);
+    checkCudaErrors( hipDeviceSynchronize() );
     if(myid2==0) gettimeofday(&et4,NULL);
     if(myid2==0) _cputime->t3_1_5_ligvoxgpu_kernel_fill_surf += (et4.tv_sec-et3.tv_sec + (float)((et4.tv_usec-et3.tv_usec)*1e-6));
 
@@ -737,27 +736,27 @@ void FFTProcess::ligand_voxelization_on_gpu(float *theta, size_t myid2)
     if(myid2==0) gettimeofday(&et3,NULL);
 
     if(_parameter->lig_elec_serial_flag == 0) {
-        lig_vox_elec<<<nBlocks_ng3, nThreads>>>(ng1, na, grid_width, _Charge_gpu[myid2], atom_coord_rotated_gpu[myid2], grid_i_gpu[myid2]);
+        hipLaunchKernelGGL(lig_vox_elec, dim3(nBlocks_ng3), dim3(nThreads), 0, 0, ng1, na, grid_width, _Charge_gpu[myid2], atom_coord_rotated_gpu[myid2], grid_i_gpu[myid2]);
     } else {
-        lig_vox_elec_serial<<<nBlocks_ng3, nThreads>>>(ng1, na, grid_width, _Charge_gpu[myid2], atom_coord_rotated_gpu[myid2], grid_i_gpu[myid2]);
+        hipLaunchKernelGGL(lig_vox_elec_serial, dim3(nBlocks_ng3), dim3(nThreads), 0, 0, ng1, na, grid_width, _Charge_gpu[myid2], atom_coord_rotated_gpu[myid2], grid_i_gpu[myid2]);
     }
 
     /*
     float *tem_grid;
     const int ng2=ng1*ng1;
     tem_grid = new float[ng3];
-    checkCudaErrors( cudaMemcpy(tem_grid, grid_i_gpu[myid2], sizeof(float)*ng3, cudaMemcpyDeviceToHost) );
+    checkCudaErrors( hipMemcpy(tem_grid, grid_i_gpu[myid2], sizeof(float)*ng3, hipMemcpyDeviceToHost) );
     //for(int i=0;i<ng3;i++) if(tem_grid[i]!=0.0) printf(" [%03d,%03d,%03d] :  %6.3f\n",i/ng2,(i/ng1)%ng1,i%ng1,tem_grid[i]);
     //*/
 
-    checkCudaErrors( cudaDeviceSynchronize() );
+    checkCudaErrors( hipDeviceSynchronize() );
     if(myid2==0) gettimeofday(&et4,NULL);
     if(myid2==0) _cputime->t3_1_6_ligvoxgpu_kernel_elec += (et4.tv_sec-et3.tv_sec + (float)((et4.tv_usec-et3.tv_usec)*1e-6));
 
     //set Voxel grid[ng3] into center of FFT grid[nf3]
     if(myid2==0) gettimeofday(&et3,NULL);
-    ligand_voxel_set<<<nBlocks_ng3, nThreads>>>(ng1,CUFFTin_gpu[myid2],grid_r_gpu[myid2],grid_i_gpu[myid2]);
-    checkCudaErrors( cudaDeviceSynchronize() );
+    hipLaunchKernelGGL(ligand_voxel_set, dim3(nBlocks_ng3), dim3(nThreads), 0, 0, ng1,CUFFTin_gpu[myid2],grid_r_gpu[myid2],grid_i_gpu[myid2]);
+    checkCudaErrors( hipDeviceSynchronize() );
     if(myid2==0) gettimeofday(&et4,NULL);
     if(myid2==0) _cputime->t3_1_7_ligvoxgpu_kernel_set_array += (et4.tv_sec-et3.tv_sec + (float)((et4.tv_usec-et3.tv_usec)*1e-6));
 
@@ -788,13 +787,13 @@ void FFTProcess::ligand_data_transfer_gpu(float *grid_coord)
 
     gettimeofday(&et1,NULL);
     for(int gpu_id = 0; gpu_id < num_gpu; gpu_id++) {
-        cudaSetDevice(gpu_id);
-        checkCudaErrors( cudaMemcpy(radius_core2_gpu[gpu_id], radius_core2, sizeof(float)*na, cudaMemcpyHostToDevice) );
-        checkCudaErrors( cudaMemcpy(radius_surf2_gpu[gpu_id], radius_surf2, sizeof(float)*na, cudaMemcpyHostToDevice) );
-        checkCudaErrors( cudaMemcpy(_Charge_gpu[gpu_id], _ligand->_Charge, sizeof(float)*na, cudaMemcpyHostToDevice) );
-        checkCudaErrors( cudaMemcpy(grid_coord_gpu[gpu_id], grid_coord, sizeof(float)*ng1, cudaMemcpyHostToDevice) );
-        checkCudaErrors( cudaMemcpy(atom_coord_orig_gpu[gpu_id], _ligand->_Coordinate, sizeof(float)*na*3, cudaMemcpyHostToDevice) );
-        checkCudaErrors( cudaMemcpy(mole_center_coord_gpu[gpu_id], _ligand->_Center, sizeof(float)*3, cudaMemcpyHostToDevice) );
+        hipSetDevice(gpu_id);
+        checkCudaErrors( hipMemcpy(radius_core2_gpu[gpu_id], radius_core2, sizeof(float)*na, hipMemcpyHostToDevice) );
+        checkCudaErrors( hipMemcpy(radius_surf2_gpu[gpu_id], radius_surf2, sizeof(float)*na, hipMemcpyHostToDevice) );
+        checkCudaErrors( hipMemcpy(_Charge_gpu[gpu_id], _ligand->_Charge, sizeof(float)*na, hipMemcpyHostToDevice) );
+        checkCudaErrors( hipMemcpy(grid_coord_gpu[gpu_id], grid_coord, sizeof(float)*ng1, hipMemcpyHostToDevice) );
+        checkCudaErrors( hipMemcpy(atom_coord_orig_gpu[gpu_id], _ligand->_Coordinate, sizeof(float)*na*3, hipMemcpyHostToDevice) );
+        checkCudaErrors( hipMemcpy(mole_center_coord_gpu[gpu_id], _ligand->_Center, sizeof(float)*3, hipMemcpyHostToDevice) );
     }
 
     gettimeofday(&et2,NULL);
@@ -832,35 +831,35 @@ void FFTProcess::fft_memory_free()
     const int nBlocks_nf3 = (nf3 + (nThreads-1)) / nThreads;
 
     for(int gpu_id = 0; gpu_id < num_gpu; gpu_id++) {
-        cudaSetDevice(gpu_id);
+        hipSetDevice(gpu_id);
 
-        cufftDestroy(cufft_plan[gpu_id]);
+        hipfftDestroy(cufft_plan[gpu_id]);
 
-        checkCudaErrors( cudaFree(CUFFTin_gpu[gpu_id]));
-        checkCudaErrors( cudaFree(CUFFTout_gpu[gpu_id]));
-        checkCudaErrors( cudaFree(_FFT_rec_r_gpu[gpu_id]));
-        checkCudaErrors( cudaFree(_FFT_rec_i_gpu[gpu_id]));
+        checkCudaErrors( hipFree(CUFFTin_gpu[gpu_id]));
+        checkCudaErrors( hipFree(CUFFTout_gpu[gpu_id]));
+        checkCudaErrors( hipFree(_FFT_rec_r_gpu[gpu_id]));
+        checkCudaErrors( hipFree(_FFT_rec_i_gpu[gpu_id]));
 
-        checkCudaErrors( cudaFree(grid_r_gpu[gpu_id]));
-        checkCudaErrors( cudaFree(grid_i_gpu[gpu_id]));
-        checkCudaErrors( cudaFree(grid_coord_gpu[gpu_id]));
+        checkCudaErrors( hipFree(grid_r_gpu[gpu_id]));
+        checkCudaErrors( hipFree(grid_i_gpu[gpu_id]));
+        checkCudaErrors( hipFree(grid_coord_gpu[gpu_id]));
 
-        checkCudaErrors( cudaFree(radius_core2_gpu[gpu_id]));
-        checkCudaErrors( cudaFree(radius_surf2_gpu[gpu_id]));
-        checkCudaErrors( cudaFree(_Charge_gpu[gpu_id]));
+        checkCudaErrors( hipFree(radius_core2_gpu[gpu_id]));
+        checkCudaErrors( hipFree(radius_surf2_gpu[gpu_id]));
+        checkCudaErrors( hipFree(_Charge_gpu[gpu_id]));
 
-        checkCudaErrors( cudaFree(xd_gpu[gpu_id]));
-        checkCudaErrors( cudaFree(yd_gpu[gpu_id]));
+        checkCudaErrors( hipFree(xd_gpu[gpu_id]));
+        checkCudaErrors( hipFree(yd_gpu[gpu_id]));
 
-        checkCudaErrors( cudaFree(zd_gpu[gpu_id]));
+        checkCudaErrors( hipFree(zd_gpu[gpu_id]));
 
-        checkCudaErrors( cudaFree(atom_coord_rotated_gpu[gpu_id]));
-        checkCudaErrors( cudaFree(atom_coord_orig_gpu[gpu_id]));
-        checkCudaErrors( cudaFree(mole_center_coord_gpu[gpu_id]));
-        checkCudaErrors( cudaFree(ligand_rotation_angle_gpu[gpu_id]));
+        checkCudaErrors( hipFree(atom_coord_rotated_gpu[gpu_id]));
+        checkCudaErrors( hipFree(atom_coord_orig_gpu[gpu_id]));
+        checkCudaErrors( hipFree(mole_center_coord_gpu[gpu_id]));
+        checkCudaErrors( hipFree(ligand_rotation_angle_gpu[gpu_id]));
 
-        checkCudaErrors( cudaFree(top_score_gpu[gpu_id]));
-        checkCudaErrors( cudaFree(top_index_gpu[gpu_id]));
+        checkCudaErrors( hipFree(top_score_gpu[gpu_id]));
+        checkCudaErrors( hipFree(top_index_gpu[gpu_id]));
 
         delete [] top_score_host[gpu_id];
         delete [] top_index_host[gpu_id];

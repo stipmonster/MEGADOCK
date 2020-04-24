@@ -27,7 +27,7 @@
 
 #ifdef CUFFT
 #include "helper_cuda.h"
-#include "cufft.h"
+#include "hipfft.h"
 //#include <thrust/device_vector.h>
 //#include <thrust/device_ptr.h>
 
@@ -49,16 +49,16 @@ private:
     const FFTProcess & operator=(const FFTProcess &c);
 #ifdef CUFFT
     //host side
-    cufftHandle *cufft_plan;
-    cufftResult *cufft_result;
-    cufftComplex *CUFFTin_host;
-    cufftComplex *CUFFTout_host;
+    hipfftHandle *cufft_plan;
+    hipfftResult *cufft_result;
+    hipfftComplex *CUFFTin_host;
+    hipfftComplex *CUFFTout_host;
     float **top_score_host;
     int   **top_index_host;
 
     //device side
-    cufftComplex **CUFFTin_gpu;
-    cufftComplex **CUFFTout_gpu;
+    hipfftComplex **CUFFTin_gpu;
+    hipfftComplex **CUFFTout_gpu;
     float **_FFT_rec_r_gpu;
     float **_FFT_rec_i_gpu;
     float **top_score_gpu;

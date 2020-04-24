@@ -7,13 +7,13 @@
 # Library PATH and compiler settings           #
 #----------------------------------------------#
 
-CUDA_INSTALL_PATH ?= /usr/local/cuda
+CUDA_INSTALL_PATH ?= /opt/rocm
 CUDA_SAMPLES_PATH ?= /usr/local/cuda/samples
 FFTW_INSTALL_PATH ?= /usr/local
-CPPCOMPILER       ?= g++
+CPPCOMPILER       ?= hipcc 
 MPICOMPILER       ?= mpicxx
 OPTIMIZATION      ?= -O3
-OMPFLAG           ?= -fopenmp
+OMPFLAG           ?= -D_OPENMP -fopenmp=libgomp  
  # (If you use g++ compiler, please set the value as "-fopenmp".)
 
 #----------------------------------------------#
@@ -92,12 +92,13 @@ ROOTOBJDIR ?= obj_$(OBJDIRPR)
 COMMONDIR  := $(ROOTDIR)/common
 
 # Compilers
-NVCC       := $(CUDA_INSTALL_PATH)/bin/nvcc -Xcompiler -fopenmp -arch=$(SM_VERSIONS) -use_fast_math
+#NVCC       := $(CUDA_INSTALL_PATH)/bin/nvcc -Xcompiler -fopenmp -arch=$(SM_VERSIONS) -use_fast_math
+NVCC       := hipcc
 CXX        := $(COMPILER) $(OMPFLAG)
 LINK       := $(COMPILER) -fPIC $(OMPFLAG)
 
 # Includes
-INCLUDES  += -I$(SRCDIR)
+INCLUDES  += -I$(SRCDIR) -I/usr/lib/gcc/x86_64-redhat-linux/4.8.2/include/
 ifeq ($(USE_GPU),1)
 	INCLUDES += -I$(CUDA_INSTALL_PATH)/include -I$(COMMONDIR)/inc
 endif
@@ -120,7 +121,6 @@ CXXFLAGS  += -static $(CXXWARN_FLAGS)
 # Common flags
 COMMONFLAGS += $(OPTIMIZATION) $(INCLUDES) $(FFTW_CFLAGS)
 LIBSUFFIX   := _x86_64
-NVCCFLAGS   += --compiler-options -fno-strict-aliasing
 #CXXFLAGS    += -fno-strict-aliasing -funroll-loops
 
 # FFTW Libs
@@ -128,7 +128,7 @@ LIB       := $(FFTW_LDFLAGS)
 
 # CUDA Libs
 ifeq ($(USE_GPU),1)
-	LIB   += -L$(CUDA_INSTALL_PATH)/lib64 -lcudart -lcufft
+	LIB   += -L$(CUDA_INSTALL_PATH)/lib64 -lrocfft
 endif
 
 TARGETDIR := $(BINDIR)
