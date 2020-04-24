@@ -6,11 +6,11 @@
 #----------------------------------------------#
 # Library PATH and compiler settings           #
 #----------------------------------------------#
-
+AOMP_COMPILER     ?= /usr/lib/aomp_0.7-6/bin/clang++
 CUDA_INSTALL_PATH ?= /opt/rocm
 CUDA_SAMPLES_PATH ?= /usr/local/cuda/samples
-FFTW_INSTALL_PATH ?= /usr/local
-CPPCOMPILER       ?= /opt/rocm-3.3.0/aomp/bin/hipcc
+FFTW_INSTALL_PATH ?= /opt/apps/amd/aocl/2.0/amd-fftw
+CPPCOMPILER       ?= $(AOMP_COMPILER)
 MPICOMPILER       ?= mpicxx
 OPTIMIZATION      ?= -O3
 OMPFLAG           ?=  -fopenmp=libgomp  -D__HIP_PLATFORM_HCC__ -std=c++11 
@@ -92,8 +92,7 @@ ROOTOBJDIR ?= obj_$(OBJDIRPR)
 COMMONDIR  := $(ROOTDIR)/common
 
 # Compilers
-#NVCC       := $(CUDA_INSTALL_PATH)/bin/nvcc -Xcompiler -fopenmp -arch=$(SM_VERSIONS) -use_fast_math
-NVCC       := /opt/rocm/aomp/bin/hipcc 
+NVCC       := $(AOMP_COMPILER) 
 CXX        := $(COMPILER) $(OMPFLAG)
 LINK       := $(COMPILER) -fPIC $(OMPFLAG)
 
